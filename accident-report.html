@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Summit School Accident Report</title>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Homemade+Apple&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --teal:#1f8a8a; --teal-dark:#166b6b; --teal-light:#e6f3f3;
+    --slate:#3f5570; --sun:#f2c14e; --ink:#1e2a35; --muted:#5f6b78;
+    --line:#cfd8df; --bg:#f4f6f7; --card:#ffffff; --err:#b3261e;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:"EB Garamond",Garamond,"Times New Roman",serif;font-size:19px;line-height:1.4}
+  .wrap{max-width:820px;margin:0 auto;padding:16px 14px 60px}
+  header{background:var(--card);border-top:7px solid var(--teal);border-radius:12px;padding:20px 22px 16px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  header h1{margin:0;font-size:1.55rem;line-height:1.15;color:var(--slate);letter-spacing:.3px}
+  header h2{margin:4px 0 0;font-size:1.15rem;font-weight:500;color:var(--teal-dark);text-transform:uppercase;letter-spacing:1.5px}
+  header p{margin:10px 0 0;color:var(--muted);font-size:.95rem}
+  .card{background:var(--card);border-radius:12px;padding:18px 20px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .card h3{margin:0 0 12px;font-size:1.05rem;color:var(--teal-dark);text-transform:uppercase;letter-spacing:1.2px;border-bottom:1px solid var(--line);padding-bottom:6px}
+  .field{margin-bottom:16px}
+  .field label{display:block;font-weight:600;margin-bottom:5px;color:var(--slate)}
+  .field label .req{color:var(--err);margin-left:3px}
+  .field label small{font-weight:400;color:var(--muted)}
+  input[type=text],input[type=date],input[type=time],textarea{
+    width:100%;font:inherit;font-size:1.05rem;padding:11px 12px;border:1.5px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+  input:focus,textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(31,138,138,.18)}
+  textarea{min-height:96px;resize:vertical}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:560px){.row{grid-template-columns:1fr}}
+  .invalid{border-color:var(--err)!important}
+  .hint{font-size:.9rem;color:var(--muted);margin-top:4px}
+
+  .sig-tabs{display:flex;gap:6px;margin-bottom:8px}
+  .sig-tabs button{font:inherit;font-size:.95rem;padding:6px 12px;border:1.5px solid var(--line);background:#fff;border-radius:999px;cursor:pointer;color:var(--slate)}
+  .sig-tabs button.on{background:var(--teal);border-color:var(--teal);color:#fff}
+  .sig-box{position:relative;border:1.5px dashed var(--teal);border-radius:8px;background:#fff;overflow:hidden}
+  .sig-box canvas{display:block;width:100%;height:170px;touch-action:none;cursor:crosshair}
+  .sig-box .baseline{position:absolute;left:14px;right:14px;bottom:34px;border-top:1px solid #b8c4cc;pointer-events:none}
+  .sig-box .ghost{position:absolute;left:0;right:0;bottom:8px;text-align:center;color:#9aa6b0;font-size:.9rem;pointer-events:none}
+  .sig-typed{display:none;padding:10px 12px}
+  .sig-typed input{margin-bottom:8px}
+  .sig-preview{height:90px;border-top:1px solid #b8c4cc;display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px;
+    font-family:"Homemade Apple",cursive;font-size:2rem;color:#0e2b5c;overflow:hidden;white-space:nowrap}
+  .sig-tools{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
+  .sig-tools button{font:inherit;font-size:.9rem;background:none;border:none;color:var(--teal-dark);cursor:pointer;text-decoration:underline;padding:4px 0}
+  .sig-meta{font-size:.85rem;color:var(--muted)}
+
+  .actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .btn{font:inherit;font-size:1.05rem;font-weight:600;padding:13px 22px;border-radius:10px;border:none;cursor:pointer}
+  .btn-primary{background:var(--teal);color:#fff}
+  .btn-primary:hover{background:var(--teal-dark)}
+  .btn-primary:disabled{opacity:.55;cursor:default}
+  .btn-ghost{background:#fff;border:1.5px solid var(--line);color:var(--slate)}
+  .status{margin-top:12px;font-size:.98rem;min-height:1.4em}
+  .status.err{color:var(--err)}
+  .status.ok{color:var(--teal-dark)}
+  .notice{background:var(--teal-light);border-left:4px solid var(--teal);padding:12px 14px;border-radius:8px;font-size:.98rem}
+  .notice b{color:var(--teal-dark)}
+  .instructions{font-size:.95rem;color:var(--muted);margin-top:14px;line-height:1.5}
+  .instructions ol{margin:6px 0 0;padding-left:22px}
+  .ack{display:flex;gap:10px;align-items:flex-start;margin:4px 0 2px}
+  .ack input{width:20px;height:20px;margin-top:3px;flex:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Summit School / Children's Residence</h1>
+    <h2>Accident Report</h2>
+    <p>Fill out every section, sign below, then tap <b>Create signed PDF</b>. Save the PDF and send it to the Business Office. If an incident report was prepared, attach a copy. Additional paperwork is required for a Workers' Comp injury.</p>
+  </header>
+
+  <form id="f" novalidate>
+  <div class="card">
+    <h3>Employee &amp; accident details</h3>
+    <div class="field">
+      <label for="name">Employee name<span class="req">*</span></label>
+      <input type="text" id="name" autocomplete="name" required>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="adate">Date of accident<span class="req">*</span></label>
+        <input type="date" id="adate" required>
+      </div>
+      <div class="field">
+        <label for="atime">Time of accident<span class="req">*</span></label>
+        <input type="time" id="atime" required>
+      </div>
+    </div>
+    <div class="field">
+      <label for="loc">Location of accident<span class="req">*</span></label>
+      <input type="text" id="loc" placeholder="Building, room, field, parking lot…" required>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>What happened</h3>
+    <div class="field">
+      <label for="how">How did the accident occur?<span class="req">*</span></label>
+      <textarea id="how" required></textarea>
+    </div>
+    <div class="field">
+      <label for="inj">What injuries are being reported?<span class="req">*</span></label>
+      <textarea id="inj" required></textarea>
+    </div>
+    <div class="field">
+      <label for="others">Other staff / students present <small>(write "None" if none)</small></label>
+      <textarea id="others" style="min-height:70px"></textarea>
+    </div>
+    <div class="field">
+      <label for="med">Medical treatment obtained <small>(write "None" if none)</small></label>
+      <textarea id="med" style="min-height:70px"></textarea>
+    </div>
+    <div class="field">
+      <label for="days">Days absent from work due to accident</label>
+      <input type="text" id="days" placeholder="e.g. 0, 2, or unknown at this time">
+    </div>
+    <div class="field">
+      <div class="ack">
+        <input type="checkbox" id="incident">
+        <label for="incident" style="margin:0;font-weight:500">An incident report was prepared and a copy is attached</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Employee signature</h3>
+    <div class="row">
+      <div class="field">
+        <label for="rdate">Date of report<span class="req">*</span></label>
+        <input type="date" id="rdate" required>
+      </div>
+    </div>
+    <div class="field">
+      <label>Signature<span class="req">*</span></label>
+      <div id="sig-emp"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Supervisor signature <small style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">(optional — may be added when reviewed)</small></h3>
+    <div class="field">
+      <label for="supname">Supervisor name</label>
+      <input type="text" id="supname">
+    </div>
+    <div class="field">
+      <label>Signature</label>
+      <div id="sig-sup"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="actions">
+      <button type="submit" class="btn btn-primary" id="go">Create signed PDF</button>
+      <button type="button" class="btn btn-ghost" id="reset">Clear form</button>
+      <a class="btn btn-primary" id="mail" href="#" style="display:none;text-decoration:none">Email the Business Office</a>
+    </div>
+    <div class="status" id="status"></div>
+    <div class="instructions">
+      <b>After the PDF is saved:</b>
+      <ol>
+        <li>Email it to the Business Office (<span id="bo-email"></span>), or print it and hand it in.</li>
+        <li>Attach a copy of the incident report if one was prepared.</li>
+        <li>If this is a Workers' Comp injury, the Business Office will send the additional paperwork.</li>
+      </ol>
+    </div>
+  </div>
+  </form>
+</div>
+
+<script>
+(function(){
+  // ====== Settings ======
+  var BUSINESS_OFFICE_EMAIL = "eburley@summitnyack.com";
+  document.getElementById('bo-email').textContent = BUSINESS_OFFICE_EMAIL;
+
+  var $ = function(id){ return document.getElementById(id); };
+  var today = new Date(); var tz = today.getTimezoneOffset()*60000;
+  var isoToday = new Date(today - tz).toISOString().slice(0,10);
+  $('rdate').value = isoToday;
+
+  // ====== Signature pad (draw or type) ======
+  function SigPad(host, who){
+    var self = this;
+    host.innerHTML =
+      '<div class="sig-tabs"><button type="button" data-m="draw" class="on">Draw</button><button type="button" data-m="type">Type</button></div>' +
+      '<div class="sig-box">' +
+        '<div class="sig-draw"><canvas></canvas><div class="baseline"></div><div class="ghost">Sign here with your finger, stylus, or mouse</div></div>' +
+        '<div class="sig-typed"><input type="text" placeholder="Type your full name" autocomplete="off"><div class="sig-preview"></div></div>' +
+      '</div>' +
+      '<div class="sig-tools"><button type="button" class="clr">Clear</button><span class="sig-meta"></span></div>';
+    this.mode = 'draw';
+    this.canvas = host.querySelector('canvas');
+    this.ctx = this.canvas.getContext('2d');
+    this.drawBox = host.querySelector('.sig-draw');
+    this.typedBox = host.querySelector('.sig-typed');
+    this.typedIn = host.querySelector('.sig-typed input');
+    this.preview = host.querySelector('.sig-preview');
+    this.ghost = host.querySelector('.ghost');
+    this.meta = host.querySelector('.sig-meta');
+    this.strokes = 0; this.signedAt = null;
+    var tabs = host.querySelectorAll('.sig-tabs button');
+    for (var i=0;i<tabs.length;i++){ tabs[i].addEventListener('click', function(e){
+      for (var j=0;j<tabs.length;j++) tabs[j].classList.remove('on');
+      e.currentTarget.classList.add('on');
+      self.mode = e.currentTarget.getAttribute('data-m');
+      self.drawBox.style.display = self.mode==='draw' ? 'block' : 'none';
+      self.typedBox.style.display = self.mode==='type' ? 'block' : 'none';
+      if (self.mode==='draw') self.resize();
+    });}
+    host.querySelector('.clr').addEventListener('click', function(){ self.clear(); });
+    this.typedIn.addEventListener('input', function(){
+      self.preview.textContent = self.typedIn.value;
+      self.signedAt = self.typedIn.value.trim() ? new Date() : null; self.stamp();
+    });
+
+    // drawing
+    var drawing=false, last=null;
+    function pos(e){ var r=self.canvas.getBoundingClientRect(); return {x:e.clientX-r.left, y:e.clientY-r.top}; }
+    this.canvas.addEventListener('pointerdown', function(e){
+      e.preventDefault(); drawing=true; last=pos(e); self.canvas.setPointerCapture(e.pointerId);
+      self.ctx.beginPath(); self.ctx.arc(last.x,last.y,1.2,0,Math.PI*2); self.ctx.fill();
+      self.strokes++; self.ghost.style.display='none'; self.signedAt=new Date(); self.stamp();
+    });
+    this.canvas.addEventListener('pointermove', function(e){
+      if(!drawing) return; e.preventDefault(); var p=pos(e);
+      self.ctx.beginPath(); self.ctx.moveTo(last.x,last.y); self.ctx.lineTo(p.x,p.y); self.ctx.stroke(); last=p;
+    });
+    var up=function(e){ drawing=false; last=null; };
+    this.canvas.addEventListener('pointerup', up); this.canvas.addEventListener('pointercancel', up); this.canvas.addEventListener('pointerleave', up);
+    window.addEventListener('resize', function(){ self.resize(); });
+    this.resize();
+  }
+  SigPad.prototype.resize = function(){
+    var keep = this.strokes ? this.canvas.toDataURL() : null;
+    var dpr = window.devicePixelRatio||1, w=this.canvas.clientWidth||600, h=170;
+    this.canvas.width=w*dpr; this.canvas.height=h*dpr;
+    this.ctx.setTransform(dpr,0,0,dpr,0,0);
+    this.ctx.lineWidth=2.2; this.ctx.lineCap='round'; this.ctx.lineJoin='round'; this.ctx.strokeStyle='#0e2b5c'; this.ctx.fillStyle='#0e2b5c';
+    if (keep){ var img=new Image(), c=this.ctx; img.onload=function(){ c.drawImage(img,0,0,w,h); }; img.src=keep; }
+  };
+  SigPad.prototype.clear = function(){
+    this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height); this.strokes=0; this.ghost.style.display='block';
+    this.typedIn.value=''; this.preview.textContent=''; this.signedAt=null; this.stamp();
+  };
+  SigPad.prototype.stamp = function(){ this.meta.textContent = this.signedAt ? 'Signed ' + this.signedAt.toLocaleString() : ''; };
+  SigPad.prototype.isSigned = function(){ return this.mode==='draw' ? this.strokes>0 : this.typedIn.value.trim().length>1; };
+  // returns {dataUrl, w, h} PNG for the PDF, or null
+  SigPad.prototype.image = function(){
+    if (!this.isSigned()) return null;
+    if (this.mode==='draw'){
+      // trim to ink bounds
+      var c=this.canvas, cx=c.getContext('2d'), d=cx.getImageData(0,0,c.width,c.height).data;
+      var minx=c.width,miny=c.height,maxx=0,maxy=0;
+      for (var y=0;y<c.height;y++) for (var x=0;x<c.width;x++){ if (d[(y*c.width+x)*4+3]>10){ if(x<minx)minx=x; if(x>maxx)maxx=x; if(y<miny)miny=y; if(y>maxy)maxy=y; } }
+      var pad=8, w=Math.max(1,maxx-minx+pad*2), h=Math.max(1,maxy-miny+pad*2);
+      var o=document.createElement('canvas'); o.width=w; o.height=h;
+      o.getContext('2d').drawImage(c, minx-pad, miny-pad, w, h, 0, 0, w, h);
+      return {dataUrl:o.toDataURL('image/png'), w:w, h:h};
+    } else {
+      var txt=this.typedIn.value.trim(), o2=document.createElement('canvas'), s=3;
+      var ctx=o2.getContext('2d'); ctx.font = (28*s)+'px "Homemade Apple", cursive';
+      var tw=Math.ceil(ctx.measureText(txt).width)+20*s; o2.width=tw; o2.height=70*s;
+      ctx=o2.getContext('2d'); ctx.font=(28*s)+'px "Homemade Apple", cursive'; ctx.fillStyle='#0e2b5c'; ctx.textBaseline='middle';
+      ctx.fillText(txt, 10*s, 36*s);
+      return {dataUrl:o2.toDataURL('image/png'), w:o2.width, h:o2.height};
+    }
+  };
+
+  var sigEmp = new SigPad($('sig-emp'), 'employee');
+  var sigSup = new SigPad($('sig-sup'), 'supervisor');
+
+  // ====== Draft autosave (text fields only) ======
+  var fields=['name','adate','atime','loc','how','inj','others','med','days','rdate','supname'];
+  try {
+    var saved = JSON.parse(localStorage.getItem('summit-accident-draft')||'null');
+    if (saved){ fields.forEach(function(k){ if(saved[k]!=null) $(k).value=saved[k]; }); $('incident').checked=!!saved.incident; }
+  } catch(e){}
+  function saveDraft(){ try{ var o={}; fields.forEach(function(k){o[k]=$(k).value;}); o.incident=$('incident').checked; localStorage.setItem('summit-accident-draft', JSON.stringify(o)); }catch(e){} }
+  fields.forEach(function(k){ $(k).addEventListener('input', saveDraft); }); $('incident').addEventListener('change', saveDraft);
+
+  var resetArmed=null;
+  $('reset').addEventListener('click', function(){
+    var b=$('reset');
+    if (!resetArmed){ b.textContent='Tap again to clear everything'; resetArmed=setTimeout(function(){ b.textContent='Clear form'; resetArmed=null; }, 4000); return; }
+    clearTimeout(resetArmed); resetArmed=null; b.textContent='Clear form';
+    fields.forEach(function(k){ $(k).value=''; $(k).classList.remove('invalid'); }); $('incident').checked=false; $('rdate').value=isoToday;
+    sigEmp.clear(); sigSup.clear(); try{localStorage.removeItem('summit-accident-draft');}catch(e){}
+    setStatus('', ''); window.scrollTo({top:0,behavior:'smooth'});
+  });
+
+  function setStatus(msg, cls){ var s=$('status'); s.textContent=msg; s.className='status '+(cls||''); }
+
+  function fmtDate(iso){ if(!iso) return ''; var p=iso.split('-'); return p[1]+'/'+p[2]+'/'+p[0]; }
+  function fmtTime(t){ if(!t) return ''; var p=t.split(':'), h=parseInt(p[0],10), ap=h>=12?'PM':'AM'; h=h%12||12; return h+':'+p[1]+' '+ap; }
+
+  // ====== Validation ======
+  function validate(){
+    var ok=true, first=null;
+    ['name','adate','atime','loc','how','inj','rdate'].forEach(function(k){
+      var el=$(k), bad=!el.value.trim(); el.classList.toggle('invalid', bad); if(bad){ ok=false; first=first||el; }
+    });
+    if (!sigEmp.isSigned()){ ok=false; setStatus('Please sign in the Employee Signature box.', 'err'); if(!first) $('sig-emp').scrollIntoView({behavior:'smooth',block:'center'}); }
+    else if (!ok) setStatus('Please fill in the highlighted required fields.', 'err');
+    if (first) first.scrollIntoView({behavior:'smooth',block:'center'});
+    return ok;
+  }
+
+  // ====== PDF ======
+  function buildPdf(){
+    var jsPDF = window.jspdf.jsPDF;
+    var doc = new jsPDF({unit:'pt', format:'letter'});
+    var W=612, M=54, x=M, y=60, cw=W-M*2;
+    var teal=[31,138,138], slate=[63,85,112], ink=[30,42,53], gray=[120,130,140];
+
+    doc.setFillColor(teal[0],teal[1],teal[2]); doc.rect(0,0,W,8,'F');
+    doc.setFont('times','bold'); doc.setFontSize(17); doc.setTextColor(slate[0],slate[1],slate[2]);
+    doc.text('SUMMIT SCHOOL / CHILDREN\'S RESIDENCE', W/2, y, {align:'center'}); y+=20;
+    doc.setFontSize(14); doc.setTextColor(teal[0],teal[1],teal[2]);
+    doc.text('ACCIDENT REPORT', W/2, y, {align:'center'}); y+=10;
+    doc.setDrawColor(200,210,215); doc.line(x,y,x+cw,y); y+=22;
+
+    function label(t){ doc.setFont('times','bold'); doc.setFontSize(10.5); doc.setTextColor(slate[0],slate[1],slate[2]); doc.text(t.toUpperCase(), x, y); y+=13; }
+    function value(t, minLines){
+      doc.setFont('times','normal'); doc.setFontSize(12); doc.setTextColor(ink[0],ink[1],ink[2]);
+      var lines = doc.splitTextToSize((t||'').trim() || '—', cw-10);
+      var n=Math.max(lines.length, minLines||1);
+      doc.text(lines, x+5, y+2);
+      y += n*15;
+      doc.setDrawColor(190,200,208); doc.line(x,y-1,x+cw,y-1); y+=11;
+      if (y>700){ doc.addPage(); y=60; }
+    }
+    function pair(l1,v1,l2,v2){
+      var half=cw/2-8, y0=y;
+      doc.setFont('times','bold'); doc.setFontSize(10.5); doc.setTextColor(slate[0],slate[1],slate[2]);
+      doc.text(l1.toUpperCase(), x, y); doc.text(l2.toUpperCase(), x+half+16, y); y+=13;
+      doc.setFont('times','normal'); doc.setFontSize(12); doc.setTextColor(ink[0],ink[1],ink[2]);
+      doc.text(v1||'—', x+5, y+2); doc.text(v2||'—', x+half+21, y+2); y+=15;
+      doc.setDrawColor(190,200,208); doc.line(x,y-1,x+half,y-1); doc.line(x+half+16,y-1,x+cw,y-1); y+=11;
+    }
+
+    label('Employee name'); value($('name').value);
+    pair('Date of accident', fmtDate($('adate').value), 'Time of accident', fmtTime($('atime').value));
+    label('Location of accident'); value($('loc').value);
+    label('How did the accident occur?'); value($('how').value, 3);
+    label('What injuries are being reported?'); value($('inj').value, 2);
+    label('Other staff / students present'); value($('others').value, 1);
+    label('Medical treatment obtained'); value($('med').value, 1);
+    label('Days absent from work due to accident'); value($('days').value, 1);
+    label('Incident report'); value($('incident').checked ? 'Incident report prepared — copy attached.' : 'No incident report attached.');
+
+    if (y>560){ doc.addPage(); y=60; }
+    y+=6;
+    function sigBlock(pad, nameLabel, nameVal, xpos, wid){
+      var img=pad.image(), top=y;
+      if (img){ var h=48, w=img.w*(h/img.h); if (w>wid-10){ w=wid-10; h=img.h*(w/img.w); } doc.addImage(img.dataUrl,'PNG', xpos+4, top+52-h, w, h); }
+      doc.setDrawColor(60,70,80); doc.line(xpos, top+56, xpos+wid, top+56);
+      doc.setFont('times','bold'); doc.setFontSize(10); doc.setTextColor(slate[0],slate[1],slate[2]); doc.text(nameLabel.toUpperCase(), xpos, top+69);
+      doc.setFont('times','normal'); doc.setFontSize(10); doc.setTextColor(gray[0],gray[1],gray[2]);
+      var meta = nameVal ? nameVal : '';
+      if (pad.signedAt) meta += (meta?'  ·  ':'') + 'Signed electronically ' + pad.signedAt.toLocaleString();
+      if (meta) doc.text(meta, xpos, top+81);
+    }
+    var half=cw/2-12;
+    sigBlock(sigEmp, 'Employee signature', $('name').value, x, half);
+    // date of report block
+    doc.setFont('times','normal'); doc.setFontSize(12); doc.setTextColor(ink[0],ink[1],ink[2]);
+    doc.text(fmtDate($('rdate').value), x+half+28, y+50);
+    doc.setDrawColor(60,70,80); doc.line(x+half+24, y+56, x+cw, y+56);
+    doc.setFont('times','bold'); doc.setFontSize(10); doc.setTextColor(slate[0],slate[1],slate[2]); doc.text('DATE OF REPORT', x+half+24, y+69);
+    y+=100;
+    sigBlock(sigSup, 'Supervisor signature', $('supname').value, x, half);
+    y+=100;
+
+    doc.setFont('times','bold'); doc.setFontSize(10); doc.setTextColor(ink[0],ink[1],ink[2]);
+    var foot = ['IF INCIDENT REPORT PREPARED, ATTACH A COPY.',
+                'THIS FORM SHOULD BE RETURNED TO THE BUSINESS OFFICE AND',
+                'ADDITIONAL PAPERWORK COMPLETED IF WORKERS COMP INJURY.'];
+    doc.text(foot, x, y); y+=42;
+    doc.setFont('times','italic'); doc.setFontSize(8.5); doc.setTextColor(gray[0],gray[1],gray[2]);
+    doc.text('Submitted electronically via the Summit accident report form on ' + new Date().toLocaleString() + '.', x, y);
+    return doc;
+  }
+
+  function safeName(s){ return (s||'Employee').trim().replace(/[^A-Za-z0-9 _-]/g,'').replace(/\s+/g,'_').slice(0,40); }
+
+  $('f').addEventListener('submit', function(e){
+    e.preventDefault();
+    if (!validate()) return;
+    if (!window.jspdf){ setStatus('The PDF library did not load. Check your connection and reload the page.', 'err'); return; }
+    var btn=$('go'); btn.disabled=true; setStatus('Building PDF…','');
+    var fontReady = (document.fonts && document.fonts.load) ? document.fonts.load('28px "Homemade Apple"').catch(function(){}) : Promise.resolve();
+    fontReady.then(function(){ try {
+      var doc = buildPdf();
+      var blob = doc.output('blob');
+      var fname = 'Accident_Report_' + safeName($('name').value) + '_' + ($('adate').value||isoToday) + '.pdf';
+      var done = function(){
+        setStatus('PDF saved: ' + fname + '. Now email it to the Business Office at ' + BUSINESS_OFFICE_EMAIL + ' (attach the PDF you just saved).', 'ok');
+        var subj = encodeURIComponent('Accident Report - ' + $('name').value.trim() + ' - ' + fmtDate($('adate').value));
+        var body = encodeURIComponent('Attached is the signed accident report for ' + $('name').value.trim() + ' (accident on ' + fmtDate($('adate').value) + ').\n\nPlease attach the PDF file named ' + fname + ' before sending.');
+        var m=$('mail'); m.href='mailto:' + BUSINESS_OFFICE_EMAIL + '?subject=' + subj + '&body=' + body; m.style.display='inline-block';
+        btn.disabled=false;
+      };
+      var p = (window.claude && window.claude.use) ? window.claude.use('downloads') : Promise.resolve(null);
+      p.then(function(dl){
+        if (!dl){ doc.save(fname); done(); return; }
+        return dl.save({filename:fname, data:blob}).then(done, function(err){
+          var code = err && err.code;
+          if (code==='declined') setStatus('Save cancelled. Tap Create signed PDF again when ready.', 'err');
+          else setStatus('Could not save the PDF (' + (code||'error') + '). Try again or reload the page.', 'err');
+          btn.disabled=false;
+        });
+      });
+    } catch(err){ setStatus('Something went wrong building the PDF: ' + err.message, 'err'); btn.disabled=false; } });
+  });
+})();
+</script>
+</body>
+</html>

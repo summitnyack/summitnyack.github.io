@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Summit School Accident Report</title>
-<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Homemade+Apple&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Homemade+Apple&display=swap" rel="stylesheet">
 <style>
   :root{
     --teal:#1f8a8a; --teal-dark:#166b6b; --teal-light:#e6f3f3;
-    --slate:#3f5570; --sun:#f2c14e; --ink:#1e2a35; --muted:#5f6b78;
+    --slate:#3f5570; --ink:#1e2a35; --muted:#5f6b78;
     --line:#cfd8df; --bg:#f4f6f7; --card:#ffffff; --err:#b3261e;
   }
   *{box-sizing:border-box}
+  [hidden]{display:none!important}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
     font-family:"EB Garamond",Garamond,"Times New Roman",serif;font-size:19px;line-height:1.4}
   .wrap{max-width:820px;margin:0 auto;padding:16px 14px 60px}
@@ -22,11 +22,12 @@
   header p{margin:10px 0 0;color:var(--muted);font-size:.95rem}
   .card{background:var(--card);border-radius:12px;padding:18px 20px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
   .card h3{margin:0 0 12px;font-size:1.05rem;color:var(--teal-dark);text-transform:uppercase;letter-spacing:1.2px;border-bottom:1px solid var(--line);padding-bottom:6px}
+  .card h3 small{text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)}
   .field{margin-bottom:16px}
   .field label{display:block;font-weight:600;margin-bottom:5px;color:var(--slate)}
   .field label .req{color:var(--err);margin-left:3px}
   .field label small{font-weight:400;color:var(--muted)}
-  input[type=text],input[type=date],input[type=time],textarea{
+  input[type=text],input[type=email],input[type=date],input[type=time],textarea{
     width:100%;font:inherit;font-size:1.05rem;padding:11px 12px;border:1.5px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
   input:focus,textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(31,138,138,.18)}
   textarea{min-height:96px;resize:vertical}
@@ -34,6 +35,7 @@
   @media (max-width:560px){.row{grid-template-columns:1fr}}
   .invalid{border-color:var(--err)!important}
   .hint{font-size:.9rem;color:var(--muted);margin-top:4px}
+  .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 
   .sig-tabs{display:flex;gap:6px;margin-bottom:8px}
   .sig-tabs button{font:inherit;font-size:.95rem;padding:6px 12px;border:1.5px solid var(--line);background:#fff;border-radius:999px;cursor:pointer;color:var(--slate)}
@@ -60,11 +62,21 @@
   .status.err{color:var(--err)}
   .status.ok{color:var(--teal-dark)}
   .notice{background:var(--teal-light);border-left:4px solid var(--teal);padding:12px 14px;border-radius:8px;font-size:.98rem}
-  .notice b{color:var(--teal-dark)}
-  .instructions{font-size:.95rem;color:var(--muted);margin-top:14px;line-height:1.5}
-  .instructions ol{margin:6px 0 0;padding-left:22px}
+  .notice.err{background:#fbeceb;border-left-color:var(--err)}
   .ack{display:flex;gap:10px;align-items:flex-start;margin:4px 0 2px}
   .ack input{width:20px;height:20px;margin-top:3px;flex:none}
+
+  /* read-only review */
+  .ro{margin-bottom:12px}
+  .ro .k{font-size:.8rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:.6px}
+  .ro .val{white-space:pre-wrap;border-bottom:1px solid var(--line);padding:2px 0 6px}
+  .ro .val.empty{color:#9aa6b0}
+  .sig-img{display:block;max-width:300px;max-height:90px;border-bottom:1px solid #8a96a0;padding-bottom:4px}
+  .done-card{text-align:center;padding:30px 22px}
+  .done-card .check{width:56px;height:56px;border-radius:50%;background:var(--teal);color:#fff;font-size:32px;line-height:56px;margin:0 auto 12px}
+  .done-card h3{border:none;text-align:center;font-size:1.3rem}
+  .spinner{display:inline-block;width:16px;height:16px;border:2px solid #fff;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:6px}
+  @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -72,15 +84,24 @@
   <header>
     <h1>Summit School / Children's Residence</h1>
     <h2>Accident Report</h2>
-    <p>Fill out every section, sign below, then tap <b>Create signed PDF</b>. Save the PDF and send it to the Business Office. If an incident report was prepared, attach a copy. Additional paperwork is required for a Workers' Comp injury.</p>
+    <p id="intro">Fill out every section and sign. When you submit, your supervisor gets an email to review and sign, and the signed report then goes to <span class="to-name"></span> automatically.</p>
   </header>
 
-  <form id="f" novalidate>
+  <div id="config-warning" class="card" hidden>
+    <div class="notice err">This form is not connected yet. The administrator needs to set the script address at the top of the page code.</div>
+  </div>
+
+  <!-- ================= NEW REPORT ================= -->
+  <form id="f" novalidate hidden>
   <div class="card">
     <h3>Employee &amp; accident details</h3>
     <div class="field">
       <label for="name">Employee name<span class="req">*</span></label>
-      <input type="text" id="name" autocomplete="name" required>
+      <input type="text" id="name" autocomplete="name" maxlength="120" required>
+    </div>
+    <div class="field">
+      <label for="empEmail">Your Summit email <small>(optional, to get a copy)</small></label>
+      <input type="email" id="empEmail" autocomplete="email" maxlength="200" placeholder="you@summitnyack.com">
     </div>
     <div class="row">
       <div class="field">
@@ -94,7 +115,7 @@
     </div>
     <div class="field">
       <label for="loc">Location of accident<span class="req">*</span></label>
-      <input type="text" id="loc" placeholder="Building, room, field, parking lot…" required>
+      <input type="text" id="loc" maxlength="300" placeholder="Building, room, field, parking lot…" required>
     </div>
   </div>
 
@@ -102,34 +123,34 @@
     <h3>What happened</h3>
     <div class="field">
       <label for="how">How did the accident occur?<span class="req">*</span></label>
-      <textarea id="how" required></textarea>
+      <textarea id="how" maxlength="5000" required></textarea>
     </div>
     <div class="field">
       <label for="inj">What injuries are being reported?<span class="req">*</span></label>
-      <textarea id="inj" required></textarea>
+      <textarea id="inj" maxlength="3000" required></textarea>
     </div>
     <div class="field">
       <label for="others">Other staff / students present <small>(write "None" if none)</small></label>
-      <textarea id="others" style="min-height:70px"></textarea>
+      <textarea id="others" maxlength="2000" style="min-height:70px"></textarea>
     </div>
     <div class="field">
       <label for="med">Medical treatment obtained <small>(write "None" if none)</small></label>
-      <textarea id="med" style="min-height:70px"></textarea>
+      <textarea id="med" maxlength="2000" style="min-height:70px"></textarea>
     </div>
     <div class="field">
       <label for="days">Days absent from work due to accident</label>
-      <input type="text" id="days" placeholder="e.g. 0, 2, or unknown at this time">
+      <input type="text" id="days" maxlength="200" placeholder="e.g. 0, 2, or unknown at this time">
     </div>
     <div class="field">
       <div class="ack">
         <input type="checkbox" id="incident">
-        <label for="incident" style="margin:0;font-weight:500">An incident report was prepared and a copy is attached</label>
+        <label for="incident" style="margin:0;font-weight:500">An incident report was prepared (give a copy to <span class="to-name"></span>)</label>
       </div>
     </div>
   </div>
 
   <div class="card">
-    <h3>Employee signature</h3>
+    <h3>Your signature</h3>
     <div class="row">
       <div class="field">
         <label for="rdate">Date of report<span class="req">*</span></label>
@@ -143,55 +164,120 @@
   </div>
 
   <div class="card">
-    <h3>Supervisor signature <small style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">(optional — may be added when reviewed)</small></h3>
-    <div class="field">
-      <label for="supname">Supervisor name</label>
-      <input type="text" id="supname">
+    <h3>Your supervisor</h3>
+    <div class="row">
+      <div class="field">
+        <label for="supName">Supervisor name</label>
+        <input type="text" id="supName" maxlength="120">
+      </div>
+      <div class="field">
+        <label for="supEmail">Supervisor email<span class="req">*</span></label>
+        <input type="email" id="supEmail" maxlength="200" placeholder="name@summitnyack.com" required>
+      </div>
     </div>
-    <div class="field">
-      <label>Signature</label>
-      <div id="sig-sup"></div>
-    </div>
+    <div class="hint">Your supervisor gets an email with a link to review and sign this report.</div>
+    <div class="hp" aria-hidden="true"><label for="website">Website</label><input type="text" id="website" tabindex="-1" autocomplete="off"></div>
   </div>
 
   <div class="card">
     <div class="actions">
-      <button type="submit" class="btn btn-primary" id="go">Create signed PDF</button>
+      <button type="submit" class="btn btn-primary" id="go">Submit report</button>
       <button type="button" class="btn btn-ghost" id="reset">Clear form</button>
-      <a class="btn btn-primary" id="mail" href="#" style="display:none;text-decoration:none">Email the Business Office</a>
     </div>
     <div class="status" id="status"></div>
-    <div class="instructions">
-      <b>After the PDF is saved:</b>
-      <ol>
-        <li>Email it to the Business Office (<span id="bo-email"></span>), or print it and hand it in.</li>
-        <li>Attach a copy of the incident report if one was prepared.</li>
-        <li>If this is a Workers' Comp injury, the Business Office will send the additional paperwork.</li>
-      </ol>
-    </div>
   </div>
   </form>
+
+  <!-- ================= SUPERVISOR REVIEW ================= -->
+  <div id="review" hidden>
+    <div class="card" id="review-loading"><div class="notice">Loading report…</div></div>
+    <div id="review-body" hidden>
+      <div class="card">
+        <h3>Report submitted by employee <small id="rv-id"></small></h3>
+        <div id="rv-fields"></div>
+        <div class="ro"><div class="k">Employee signature</div>
+          <img id="rv-sig" class="sig-img" alt="Employee signature">
+          <div class="hint" id="rv-signed"></div>
+        </div>
+      </div>
+      <form id="sf" novalidate>
+      <div class="card">
+        <h3>Supervisor review &amp; signature</h3>
+        <div class="field">
+          <label for="sv-name">Your name<span class="req">*</span></label>
+          <input type="text" id="sv-name" maxlength="120" required>
+        </div>
+        <div class="field">
+          <label for="sv-comments">Comments <small>(optional)</small></label>
+          <textarea id="sv-comments" maxlength="2000" style="min-height:70px"></textarea>
+        </div>
+        <div class="field">
+          <label>Signature<span class="req">*</span></label>
+          <div id="sig-sup"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="actions">
+          <button type="submit" class="btn btn-primary" id="sv-go">Sign &amp; send to <span class="to-name"></span></button>
+        </div>
+        <div class="status" id="sv-status"></div>
+      </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= DONE / MESSAGES ================= -->
+  <div class="card done-card" id="done" hidden>
+    <div class="check">&#10003;</div>
+    <h3 id="done-title"></h3>
+    <p id="done-text"></p>
+    <p><button type="button" class="btn btn-ghost" id="done-new" hidden>Start a new report</button></p>
+  </div>
+  <div class="card" id="msg" hidden><div class="notice err" id="msg-text"></div></div>
 </div>
 
 <script>
 (function(){
-  // ====== Settings ======
-  var BUSINESS_OFFICE_EMAIL = "eburley@summitnyack.com";
-  document.getElementById('bo-email').textContent = BUSINESS_OFFICE_EMAIL;
+  // ================== SETTINGS ==================
+  // Paste the Apps Script web app URL (ends in /exec) between the quotes:
+  var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwZSw3EPa_ayrOYS7B9EDQjJobu7Ns4g3nYbOtE36EJlJqje7PF5W4U07BeBDNMyK3MYg/exec";
+  var REPORT_TO_NAME = "Naomi Zeliger";
+  var EMAIL_DOMAIN = "summitnyack.com";
+  // ==============================================
 
   var $ = function(id){ return document.getElementById(id); };
+  var all = function(sel){ return Array.prototype.slice.call(document.querySelectorAll(sel)); };
+  all('.to-name').forEach(function(el){ el.textContent = REPORT_TO_NAME; });
+  var connected = /^https:\/\/script\.google(usercontent)?\.com\//.test(SCRIPT_URL);
+
   var today = new Date(); var tz = today.getTimezoneOffset()*60000;
   var isoToday = new Date(today - tz).toISOString().slice(0,10);
-  $('rdate').value = isoToday;
 
-  // ====== Signature pad (draw or type) ======
-  function SigPad(host, who){
+  function show(id){ ['f','review','done','msg'].forEach(function(x){ $(x).hidden = (x!==id); }); }
+  function setStatus(el, msg, cls){ el.textContent=msg; el.className='status '+(cls||''); }
+  function fatal(msg){ $('msg-text').textContent = msg; show('msg'); }
+  function fmtDate(iso){ var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||''); return m ? m[2]+'/'+m[3]+'/'+m[1] : (iso||''); }
+  function fmtTime(t){ var m=/^(\d{1,2}):(\d{2})$/.exec(t||''); if(!m) return t||''; var h=parseInt(m[1],10), ap=h>=12?'PM':'AM'; h=h%12||12; return h+':'+m[2]+' '+ap; }
+  function emailOk(v){ var m=/^[^@\s]+@([^@\s]+)$/.exec((v||'').trim().toLowerCase()); return !!m && m[1]===EMAIL_DOMAIN; }
+
+  // ---------- API ----------
+  function apiPost(payload){
+    return fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify(payload) })
+      .then(function(r){ return r.json(); });
+  }
+  function apiGet(params){
+    var q = Object.keys(params).map(function(k){ return encodeURIComponent(k)+'='+encodeURIComponent(params[k]); }).join('&');
+    return fetch(SCRIPT_URL + (SCRIPT_URL.indexOf('?')>-1?'&':'?') + q).then(function(r){ return r.json(); });
+  }
+
+  // ---------- Signature pad (draw or type) ----------
+  function SigPad(host){
     var self = this;
     host.innerHTML =
       '<div class="sig-tabs"><button type="button" data-m="draw" class="on">Draw</button><button type="button" data-m="type">Type</button></div>' +
       '<div class="sig-box">' +
         '<div class="sig-draw"><canvas></canvas><div class="baseline"></div><div class="ghost">Sign here with your finger, stylus, or mouse</div></div>' +
-        '<div class="sig-typed"><input type="text" placeholder="Type your full name" autocomplete="off"><div class="sig-preview"></div></div>' +
+        '<div class="sig-typed"><input type="text" placeholder="Type your full name" autocomplete="off" maxlength="80"><div class="sig-preview"></div></div>' +
       '</div>' +
       '<div class="sig-tools"><button type="button" class="clr">Clear</button><span class="sig-meta"></span></div>';
     this.mode = 'draw';
@@ -203,7 +289,7 @@
     this.preview = host.querySelector('.sig-preview');
     this.ghost = host.querySelector('.ghost');
     this.meta = host.querySelector('.sig-meta');
-    this.strokes = 0; this.signedAt = null;
+    this.strokes = 0;
     var tabs = host.querySelectorAll('.sig-tabs button');
     for (var i=0;i<tabs.length;i++){ tabs[i].addEventListener('click', function(e){
       for (var j=0;j<tabs.length;j++) tabs[j].classList.remove('on');
@@ -212,26 +298,24 @@
       self.drawBox.style.display = self.mode==='draw' ? 'block' : 'none';
       self.typedBox.style.display = self.mode==='type' ? 'block' : 'none';
       if (self.mode==='draw') self.resize();
+      self.stamp();
     });}
     host.querySelector('.clr').addEventListener('click', function(){ self.clear(); });
-    this.typedIn.addEventListener('input', function(){
-      self.preview.textContent = self.typedIn.value;
-      self.signedAt = self.typedIn.value.trim() ? new Date() : null; self.stamp();
-    });
+    this.typedIn.addEventListener('input', function(){ self.preview.textContent = self.typedIn.value; self.stamp(); });
 
-    // drawing
     var drawing=false, last=null;
     function pos(e){ var r=self.canvas.getBoundingClientRect(); return {x:e.clientX-r.left, y:e.clientY-r.top}; }
     this.canvas.addEventListener('pointerdown', function(e){
-      e.preventDefault(); drawing=true; last=pos(e); self.canvas.setPointerCapture(e.pointerId);
+      e.preventDefault(); drawing=true; last=pos(e);
+      try{ self.canvas.setPointerCapture(e.pointerId); }catch(x){}
       self.ctx.beginPath(); self.ctx.arc(last.x,last.y,1.2,0,Math.PI*2); self.ctx.fill();
-      self.strokes++; self.ghost.style.display='none'; self.signedAt=new Date(); self.stamp();
+      self.strokes++; self.ghost.style.display='none'; self.stamp();
     });
     this.canvas.addEventListener('pointermove', function(e){
       if(!drawing) return; e.preventDefault(); var p=pos(e);
       self.ctx.beginPath(); self.ctx.moveTo(last.x,last.y); self.ctx.lineTo(p.x,p.y); self.ctx.stroke(); last=p;
     });
-    var up=function(e){ drawing=false; last=null; };
+    var up=function(){ drawing=false; last=null; };
     this.canvas.addEventListener('pointerup', up); this.canvas.addEventListener('pointercancel', up); this.canvas.addEventListener('pointerleave', up);
     window.addEventListener('resize', function(){ self.resize(); });
     this.resize();
@@ -246,178 +330,166 @@
   };
   SigPad.prototype.clear = function(){
     this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height); this.strokes=0; this.ghost.style.display='block';
-    this.typedIn.value=''; this.preview.textContent=''; this.signedAt=null; this.stamp();
+    this.typedIn.value=''; this.preview.textContent=''; this.stamp();
   };
-  SigPad.prototype.stamp = function(){ this.meta.textContent = this.signedAt ? 'Signed ' + this.signedAt.toLocaleString() : ''; };
   SigPad.prototype.isSigned = function(){ return this.mode==='draw' ? this.strokes>0 : this.typedIn.value.trim().length>1; };
-  // returns {dataUrl, w, h} PNG for the PDF, or null
-  SigPad.prototype.image = function(){
+  SigPad.prototype.stamp = function(){ this.meta.textContent = this.isSigned() ? 'Signed' : ''; };
+  // PNG data URL trimmed to the ink, or null
+  SigPad.prototype.dataUrl = function(){
     if (!this.isSigned()) return null;
     if (this.mode==='draw'){
-      // trim to ink bounds
-      var c=this.canvas, cx=c.getContext('2d'), d=cx.getImageData(0,0,c.width,c.height).data;
+      var c=this.canvas, d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;
       var minx=c.width,miny=c.height,maxx=0,maxy=0;
       for (var y=0;y<c.height;y++) for (var x=0;x<c.width;x++){ if (d[(y*c.width+x)*4+3]>10){ if(x<minx)minx=x; if(x>maxx)maxx=x; if(y<miny)miny=y; if(y>maxy)maxy=y; } }
-      var pad=8, w=Math.max(1,maxx-minx+pad*2), h=Math.max(1,maxy-miny+pad*2);
-      var o=document.createElement('canvas'); o.width=w; o.height=h;
-      o.getContext('2d').drawImage(c, minx-pad, miny-pad, w, h, 0, 0, w, h);
-      return {dataUrl:o.toDataURL('image/png'), w:w, h:h};
-    } else {
-      var txt=this.typedIn.value.trim(), o2=document.createElement('canvas'), s=3;
-      var ctx=o2.getContext('2d'); ctx.font = (28*s)+'px "Homemade Apple", cursive';
-      var tw=Math.ceil(ctx.measureText(txt).width)+20*s; o2.width=tw; o2.height=70*s;
-      ctx=o2.getContext('2d'); ctx.font=(28*s)+'px "Homemade Apple", cursive'; ctx.fillStyle='#0e2b5c'; ctx.textBaseline='middle';
-      ctx.fillText(txt, 10*s, 36*s);
-      return {dataUrl:o2.toDataURL('image/png'), w:o2.width, h:o2.height};
+      var pad=8, sx=Math.max(0,minx-pad), sy=Math.max(0,miny-pad);
+      var w=Math.min(c.width-sx, maxx-minx+pad*2), h=Math.min(c.height-sy, maxy-miny+pad*2);
+      var scale=Math.min(1, 600/w);
+      var o=document.createElement('canvas'); o.width=Math.round(w*scale); o.height=Math.round(h*scale);
+      o.getContext('2d').drawImage(c, sx, sy, w, h, 0, 0, o.width, o.height);
+      return o.toDataURL('image/png');
     }
+    var txt=this.typedIn.value.trim(), o2=document.createElement('canvas'), s=2;
+    var ctx=o2.getContext('2d'); ctx.font=(28*s)+'px "Homemade Apple", cursive';
+    o2.width=Math.ceil(ctx.measureText(txt).width)+20*s; o2.height=70*s;
+    ctx=o2.getContext('2d'); ctx.font=(28*s)+'px "Homemade Apple", cursive'; ctx.fillStyle='#0e2b5c'; ctx.textBaseline='middle';
+    ctx.fillText(txt, 10*s, 36*s);
+    return o2.toDataURL('image/png');
   };
+  function fontsReady(){
+    return (document.fonts && document.fonts.load) ? document.fonts.load('28px "Homemade Apple"').catch(function(){}) : Promise.resolve();
+  }
 
-  var sigEmp = new SigPad($('sig-emp'), 'employee');
-  var sigSup = new SigPad($('sig-sup'), 'supervisor');
+  // ---------- Route ----------
+  var params = new URLSearchParams(location.search);
+  var reviewId = params.get('review'), reviewToken = params.get('t');
+  if (!connected){ $('config-warning').hidden = false; }
+  if (reviewId) startReview(); else startNew();
 
-  // ====== Draft autosave (text fields only) ======
-  var fields=['name','adate','atime','loc','how','inj','others','med','days','rdate','supname'];
-  try {
-    var saved = JSON.parse(localStorage.getItem('summit-accident-draft')||'null');
-    if (saved){ fields.forEach(function(k){ if(saved[k]!=null) $(k).value=saved[k]; }); $('incident').checked=!!saved.incident; }
-  } catch(e){}
-  function saveDraft(){ try{ var o={}; fields.forEach(function(k){o[k]=$(k).value;}); o.incident=$('incident').checked; localStorage.setItem('summit-accident-draft', JSON.stringify(o)); }catch(e){} }
-  fields.forEach(function(k){ $(k).addEventListener('input', saveDraft); }); $('incident').addEventListener('change', saveDraft);
+  // ================= NEW REPORT =================
+  function startNew(){
+    show('f');
+    $('rdate').value = isoToday;
+    var sigEmp = new SigPad($('sig-emp'));
+    var fields=['name','empEmail','adate','atime','loc','how','inj','others','med','days','rdate','supName','supEmail'];
+    var DRAFT='summit-accident-draft-v2';
+    try {
+      var saved = JSON.parse(localStorage.getItem(DRAFT)||'null');
+      if (saved){ fields.forEach(function(k){ if(saved[k]!=null && saved[k]!=='') $(k).value=saved[k]; }); $('incident').checked=!!saved.incident; }
+    } catch(e){}
+    function saveDraft(){ try{ var o={}; fields.forEach(function(k){o[k]=$(k).value;}); o.incident=$('incident').checked; localStorage.setItem(DRAFT, JSON.stringify(o)); }catch(e){} }
+    function clearDraft(){ try{ localStorage.removeItem(DRAFT); }catch(e){} }
+    fields.forEach(function(k){ $(k).addEventListener('input', saveDraft); }); $('incident').addEventListener('change', saveDraft);
 
-  var resetArmed=null;
-  $('reset').addEventListener('click', function(){
-    var b=$('reset');
-    if (!resetArmed){ b.textContent='Tap again to clear everything'; resetArmed=setTimeout(function(){ b.textContent='Clear form'; resetArmed=null; }, 4000); return; }
-    clearTimeout(resetArmed); resetArmed=null; b.textContent='Clear form';
-    fields.forEach(function(k){ $(k).value=''; $(k).classList.remove('invalid'); }); $('incident').checked=false; $('rdate').value=isoToday;
-    sigEmp.clear(); sigSup.clear(); try{localStorage.removeItem('summit-accident-draft');}catch(e){}
-    setStatus('', ''); window.scrollTo({top:0,behavior:'smooth'});
-  });
-
-  function setStatus(msg, cls){ var s=$('status'); s.textContent=msg; s.className='status '+(cls||''); }
-
-  function fmtDate(iso){ if(!iso) return ''; var p=iso.split('-'); return p[1]+'/'+p[2]+'/'+p[0]; }
-  function fmtTime(t){ if(!t) return ''; var p=t.split(':'), h=parseInt(p[0],10), ap=h>=12?'PM':'AM'; h=h%12||12; return h+':'+p[1]+' '+ap; }
-
-  // ====== Validation ======
-  function validate(){
-    var ok=true, first=null;
-    ['name','adate','atime','loc','how','inj','rdate'].forEach(function(k){
-      var el=$(k), bad=!el.value.trim(); el.classList.toggle('invalid', bad); if(bad){ ok=false; first=first||el; }
+    var resetArmed=null;
+    $('reset').addEventListener('click', function(){
+      var b=$('reset');
+      if (!resetArmed){ b.textContent='Tap again to clear everything'; resetArmed=setTimeout(function(){ b.textContent='Clear form'; resetArmed=null; }, 4000); return; }
+      clearTimeout(resetArmed); resetArmed=null; b.textContent='Clear form';
+      fields.forEach(function(k){ $(k).value=''; $(k).classList.remove('invalid'); }); $('incident').checked=false; $('rdate').value=isoToday;
+      sigEmp.clear(); clearDraft(); setStatus($('status'),'',''); window.scrollTo({top:0,behavior:'smooth'});
     });
-    if (!sigEmp.isSigned()){ ok=false; setStatus('Please sign in the Employee Signature box.', 'err'); if(!first) $('sig-emp').scrollIntoView({behavior:'smooth',block:'center'}); }
-    else if (!ok) setStatus('Please fill in the highlighted required fields.', 'err');
-    if (first) first.scrollIntoView({behavior:'smooth',block:'center'});
-    return ok;
-  }
 
-  // ====== PDF ======
-  function buildPdf(){
-    var jsPDF = window.jspdf.jsPDF;
-    var doc = new jsPDF({unit:'pt', format:'letter'});
-    var W=612, M=54, x=M, y=60, cw=W-M*2;
-    var teal=[31,138,138], slate=[63,85,112], ink=[30,42,53], gray=[120,130,140];
-
-    doc.setFillColor(teal[0],teal[1],teal[2]); doc.rect(0,0,W,8,'F');
-    doc.setFont('times','bold'); doc.setFontSize(17); doc.setTextColor(slate[0],slate[1],slate[2]);
-    doc.text('SUMMIT SCHOOL / CHILDREN\'S RESIDENCE', W/2, y, {align:'center'}); y+=20;
-    doc.setFontSize(14); doc.setTextColor(teal[0],teal[1],teal[2]);
-    doc.text('ACCIDENT REPORT', W/2, y, {align:'center'}); y+=10;
-    doc.setDrawColor(200,210,215); doc.line(x,y,x+cw,y); y+=22;
-
-    function label(t){ doc.setFont('times','bold'); doc.setFontSize(10.5); doc.setTextColor(slate[0],slate[1],slate[2]); doc.text(t.toUpperCase(), x, y); y+=13; }
-    function value(t, minLines){
-      doc.setFont('times','normal'); doc.setFontSize(12); doc.setTextColor(ink[0],ink[1],ink[2]);
-      var lines = doc.splitTextToSize((t||'').trim() || '—', cw-10);
-      var n=Math.max(lines.length, minLines||1);
-      doc.text(lines, x+5, y+2);
-      y += n*15;
-      doc.setDrawColor(190,200,208); doc.line(x,y-1,x+cw,y-1); y+=11;
-      if (y>700){ doc.addPage(); y=60; }
-    }
-    function pair(l1,v1,l2,v2){
-      var half=cw/2-8, y0=y;
-      doc.setFont('times','bold'); doc.setFontSize(10.5); doc.setTextColor(slate[0],slate[1],slate[2]);
-      doc.text(l1.toUpperCase(), x, y); doc.text(l2.toUpperCase(), x+half+16, y); y+=13;
-      doc.setFont('times','normal'); doc.setFontSize(12); doc.setTextColor(ink[0],ink[1],ink[2]);
-      doc.text(v1||'—', x+5, y+2); doc.text(v2||'—', x+half+21, y+2); y+=15;
-      doc.setDrawColor(190,200,208); doc.line(x,y-1,x+half,y-1); doc.line(x+half+16,y-1,x+cw,y-1); y+=11;
-    }
-
-    label('Employee name'); value($('name').value);
-    pair('Date of accident', fmtDate($('adate').value), 'Time of accident', fmtTime($('atime').value));
-    label('Location of accident'); value($('loc').value);
-    label('How did the accident occur?'); value($('how').value, 3);
-    label('What injuries are being reported?'); value($('inj').value, 2);
-    label('Other staff / students present'); value($('others').value, 1);
-    label('Medical treatment obtained'); value($('med').value, 1);
-    label('Days absent from work due to accident'); value($('days').value, 1);
-    label('Incident report'); value($('incident').checked ? 'Incident report prepared — copy attached.' : 'No incident report attached.');
-
-    if (y>560){ doc.addPage(); y=60; }
-    y+=6;
-    function sigBlock(pad, nameLabel, nameVal, xpos, wid){
-      var img=pad.image(), top=y;
-      if (img){ var h=48, w=img.w*(h/img.h); if (w>wid-10){ w=wid-10; h=img.h*(w/img.w); } doc.addImage(img.dataUrl,'PNG', xpos+4, top+52-h, w, h); }
-      doc.setDrawColor(60,70,80); doc.line(xpos, top+56, xpos+wid, top+56);
-      doc.setFont('times','bold'); doc.setFontSize(10); doc.setTextColor(slate[0],slate[1],slate[2]); doc.text(nameLabel.toUpperCase(), xpos, top+69);
-      doc.setFont('times','normal'); doc.setFontSize(10); doc.setTextColor(gray[0],gray[1],gray[2]);
-      var meta = nameVal ? nameVal : '';
-      if (pad.signedAt) meta += (meta?'  ·  ':'') + 'Signed electronically ' + pad.signedAt.toLocaleString();
-      if (meta) doc.text(meta, xpos, top+81);
-    }
-    var half=cw/2-12;
-    sigBlock(sigEmp, 'Employee signature', $('name').value, x, half);
-    // date of report block
-    doc.setFont('times','normal'); doc.setFontSize(12); doc.setTextColor(ink[0],ink[1],ink[2]);
-    doc.text(fmtDate($('rdate').value), x+half+28, y+50);
-    doc.setDrawColor(60,70,80); doc.line(x+half+24, y+56, x+cw, y+56);
-    doc.setFont('times','bold'); doc.setFontSize(10); doc.setTextColor(slate[0],slate[1],slate[2]); doc.text('DATE OF REPORT', x+half+24, y+69);
-    y+=100;
-    sigBlock(sigSup, 'Supervisor signature', $('supname').value, x, half);
-    y+=100;
-
-    doc.setFont('times','bold'); doc.setFontSize(10); doc.setTextColor(ink[0],ink[1],ink[2]);
-    var foot = ['IF INCIDENT REPORT PREPARED, ATTACH A COPY.',
-                'THIS FORM SHOULD BE RETURNED TO THE BUSINESS OFFICE AND',
-                'ADDITIONAL PAPERWORK COMPLETED IF WORKERS COMP INJURY.'];
-    doc.text(foot, x, y); y+=42;
-    doc.setFont('times','italic'); doc.setFontSize(8.5); doc.setTextColor(gray[0],gray[1],gray[2]);
-    doc.text('Submitted electronically via the Summit accident report form on ' + new Date().toLocaleString() + '.', x, y);
-    return doc;
-  }
-
-  function safeName(s){ return (s||'Employee').trim().replace(/[^A-Za-z0-9 _-]/g,'').replace(/\s+/g,'_').slice(0,40); }
-
-  $('f').addEventListener('submit', function(e){
-    e.preventDefault();
-    if (!validate()) return;
-    if (!window.jspdf){ setStatus('The PDF library did not load. Check your connection and reload the page.', 'err'); return; }
-    var btn=$('go'); btn.disabled=true; setStatus('Building PDF…','');
-    var fontReady = (document.fonts && document.fonts.load) ? document.fonts.load('28px "Homemade Apple"').catch(function(){}) : Promise.resolve();
-    fontReady.then(function(){ try {
-      var doc = buildPdf();
-      var blob = doc.output('blob');
-      var fname = 'Accident_Report_' + safeName($('name').value) + '_' + ($('adate').value||isoToday) + '.pdf';
-      var done = function(){
-        setStatus('PDF saved: ' + fname + '. Now email it to the Business Office at ' + BUSINESS_OFFICE_EMAIL + ' (attach the PDF you just saved).', 'ok');
-        var subj = encodeURIComponent('Accident Report - ' + $('name').value.trim() + ' - ' + fmtDate($('adate').value));
-        var body = encodeURIComponent('Attached is the signed accident report for ' + $('name').value.trim() + ' (accident on ' + fmtDate($('adate').value) + ').\n\nPlease attach the PDF file named ' + fname + ' before sending.');
-        var m=$('mail'); m.href='mailto:' + BUSINESS_OFFICE_EMAIL + '?subject=' + subj + '&body=' + body; m.style.display='inline-block';
-        btn.disabled=false;
-      };
-      var p = (window.claude && window.claude.use) ? window.claude.use('downloads') : Promise.resolve(null);
-      p.then(function(dl){
-        if (!dl){ doc.save(fname); done(); return; }
-        return dl.save({filename:fname, data:blob}).then(done, function(err){
-          var code = err && err.code;
-          if (code==='declined') setStatus('Save cancelled. Tap Create signed PDF again when ready.', 'err');
-          else setStatus('Could not save the PDF (' + (code||'error') + '). Try again or reload the page.', 'err');
-          btn.disabled=false;
-        });
+    function validate(){
+      var ok=true, first=null, msg='Please fill in the highlighted required fields.';
+      fields.forEach(function(k){ $(k).classList.remove('invalid'); });
+      ['name','adate','atime','loc','how','inj','rdate','supEmail'].forEach(function(k){
+        var el=$(k); if(!el.value.trim()){ el.classList.add('invalid'); ok=false; first=first||el; }
       });
-    } catch(err){ setStatus('Something went wrong building the PDF: ' + err.message, 'err'); btn.disabled=false; } });
-  });
+      if (ok && !emailOk($('supEmail').value)){ $('supEmail').classList.add('invalid'); ok=false; first=$('supEmail'); msg='Supervisor email must be an @'+EMAIL_DOMAIN+' address.'; }
+      if (ok && $('empEmail').value.trim() && !emailOk($('empEmail').value)){ $('empEmail').classList.add('invalid'); ok=false; first=$('empEmail'); msg='Your email must be an @'+EMAIL_DOMAIN+' address, or leave it blank.'; }
+      if (ok && !sigEmp.isSigned()){ ok=false; msg='Please sign in the signature box.'; first=$('sig-emp'); }
+      if (!ok){ setStatus($('status'), msg, 'err'); first.scrollIntoView({behavior:'smooth',block:'center'}); }
+      return ok;
+    }
+
+    $('f').addEventListener('submit', function(e){
+      e.preventDefault();
+      if (!connected){ setStatus($('status'),'This form is not connected yet. Please contact the technology office.','err'); return; }
+      if (!validate()) return;
+      var btn=$('go'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Submitting…'; setStatus($('status'),'','');
+      fontsReady().then(function(){
+        var p = { action:'submit', empSig: sigEmp.dataUrl(), incident: $('incident').checked, website: $('website').value };
+        fields.forEach(function(k){ p[k] = $(k).value.trim(); });
+        return apiPost(p);
+      }).then(function(res){
+        if (!res || !res.ok) throw new Error((res && res.error) || 'Something went wrong.');
+        clearDraft();
+        $('done-title').textContent = 'Report submitted';
+        $('done-text').textContent = 'It was sent to ' + (res.supEmail || 'your supervisor') + ' to review and sign. After they sign, it goes to ' + REPORT_TO_NAME + ' automatically.' + ($('empEmail').value.trim() ? ' A copy will be emailed to you.' : '');
+        $('done-new').hidden = false;
+        show('done'); window.scrollTo(0,0);
+      }).catch(function(err){
+        setStatus($('status'), 'Could not submit: ' + err.message + ' Your answers are saved on this device; try again.', 'err');
+        btn.disabled=false; btn.textContent='Submit report';
+      });
+    });
+    $('done-new').addEventListener('click', function(){ location.href = location.pathname; });
+  }
+
+  // ================= SUPERVISOR REVIEW =================
+  function startReview(){
+    show('review');
+    $('intro').textContent = 'Review the report below, add any comments, and sign. When you submit, the signed report is emailed to ' + REPORT_TO_NAME + ' and copied to you and the employee.';
+    if (!connected){ $('review-loading').hidden = true; return; }
+    apiGet({ action:'get', id: reviewId, t: reviewToken || '' }).then(function(res){
+      if (!res || !res.ok) throw new Error((res && res.error) || 'Could not load this report.');
+      var d = res.data || {};
+      if (res.status === 'Complete'){
+        $('done-title').textContent = 'Already signed';
+        $('done-text').textContent = 'This report for ' + (d.name||'the employee') + ' was signed' + (d.supName ? ' by ' + d.supName : '') + (res.completedAt ? ' on ' + res.completedAt : '') + ' and sent to ' + REPORT_TO_NAME + '.';
+        show('done'); return;
+      }
+      renderReview(res);
+    }).catch(function(err){ fatal(err.message); });
+  }
+
+  function renderReview(res){
+    var d = res.data;
+    $('rv-id').textContent = '(Report ' + res.id + ')';
+    var rows = [
+      ['Employee name', d.name],
+      ['Date of accident', fmtDate(d.adate)],
+      ['Time of accident', fmtTime(d.atime)],
+      ['Location of accident', d.loc],
+      ['How did the accident occur?', d.how],
+      ['What injuries are being reported?', d.inj],
+      ['Other staff / students present', d.others],
+      ['Medical treatment obtained', d.med],
+      ['Days absent from work due to accident', d.days],
+      ['Incident report', d.incident ? 'Incident report prepared' : 'No incident report'],
+      ['Date of report', fmtDate(d.rdate)]
+    ];
+    var host = $('rv-fields'); host.innerHTML='';
+    rows.forEach(function(r){
+      var w=document.createElement('div'); w.className='ro';
+      var k=document.createElement('div'); k.className='k'; k.textContent=r[0];
+      var v=document.createElement('div'); v.className='val' + (r[1] ? '' : ' empty'); v.textContent = r[1] || '—';
+      w.appendChild(k); w.appendChild(v); host.appendChild(w);
+    });
+    $('rv-sig').src = res.empSig;
+    $('rv-signed').textContent = d.empSignedAt ? 'Signed electronically ' + d.empSignedAt : '';
+    if (d.supName) $('sv-name').value = d.supName;
+    $('review-loading').hidden = true; $('review-body').hidden = false;
+
+    var sigSup = new SigPad($('sig-sup'));
+    $('sf').addEventListener('submit', function(e){
+      e.preventDefault();
+      var st=$('sv-status'); $('sv-name').classList.remove('invalid');
+      if (!$('sv-name').value.trim()){ $('sv-name').classList.add('invalid'); setStatus(st,'Please enter your name.','err'); $('sv-name').scrollIntoView({behavior:'smooth',block:'center'}); return; }
+      if (!sigSup.isSigned()){ setStatus(st,'Please sign in the signature box.','err'); $('sig-sup').scrollIntoView({behavior:'smooth',block:'center'}); return; }
+      var btn=$('sv-go'), label=btn.innerHTML; btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Sending…'; setStatus(st,'','');
+      fontsReady().then(function(){
+        return apiPost({ action:'countersign', id: reviewId, t: reviewToken, supName: $('sv-name').value.trim(), supComments: $('sv-comments').value.trim(), supSig: sigSup.dataUrl() });
+      }).then(function(r){
+        if (!r || !r.ok) throw new Error((r && r.error) || 'Something went wrong.');
+        $('done-title').textContent = 'Signed and sent';
+        $('done-text').textContent = 'The signed report for ' + d.name + ' was emailed to ' + REPORT_TO_NAME + '. You and the employee were copied.';
+        show('done'); window.scrollTo(0,0);
+      }).catch(function(err){
+        setStatus(st, 'Could not send: ' + err.message, 'err'); btn.disabled=false; btn.innerHTML=label;
+      });
+    });
+  }
 })();
 </script>
 </body>
